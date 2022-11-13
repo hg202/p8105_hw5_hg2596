@@ -1,0 +1,211 @@
+---
+title: "hw5_hg2596"
+output: html_document
+date: "2022-11-10"
+---
+```{r}
+
+library(tidyverse)
+library(ggridges)
+library(patchwork)
+library(readxl)
+library(lubridate)
+library(tidyr)
+library(dplyr)
+```
+
+```{r}
+homicide_1= read_csv("./data/homicide_data.csv", show_col_types = FALSE)
+```
+
+# Create a city_state variable 
+
+```{r}
+homicide_1 = homicide_1 %>%
+  unite('city_state', city:state, remove = FALSE) %>% 
+  apply(., 2, function(city_state) as.character(gsub("_", ",", city_state))) 
+```
+
+
+```{r}
+homicide_2 = as.tibble(homicide_1) %>%
+  janitor::clean_names() %>%
+  mutate(victim_age = as.numeric(victim_age)) %>%
+  mutate(lat = as.numeric(lat)) %>%
+  mutate(lon = as.numeric(lon)) %>%
+  mutate(status = ifelse(disposition%in%c("Closed without arrest","Open/No arrest"), 1, 0))
+  
+```
+
+```{r}
+sum_hc = homicide_2 %>%
+  group_by(city) %>%
+  summarize(n_obs = n(), 
+            n_unsolved = sum(status)) 
+```
+
+```{r}
+baltimore_hc = sum_hc %>% 
+  filter(city == "Baltimore") 
+```
+
+# Prop test 
+
+find successes -> unsolved in Baltimore -> 1825
+find trials -> out of total for Baltimore -> 2827
+
+```{r}
+first_prop = prop.test(x = pull(baltimore_hc,n_unsolved), n = pull(baltimore_hc,n_obs)) %>%
+  broom::tidy()
+```
+
+```{r}
+full_prop = prop.test(x = pull(sum_hc,n_unsolved), n = pull(sum_hc,n_obs)) %>%
+  broom::tidy()
+```
+
+For Baltimore, the probability of having an unsolved case is 0.645. 
+I was able to do this by **pulled** the "x" **(n_unsolved variable)** and "n" from **(n_obs variable)** my Baltimore data. 
+Couldn't use sum_hc because the pull is taking _columns__  
+If used sum_hc it would have taken from **every single city** -> full_prop 
+
+This isn't exactly what I want because it doesn't give me "city" "confidence intervals" 
+
+function(n_obs, mu = 7, sigma = 4) 
+
+```{r}
+sum_x = homicide_2 %>%
+  group_by(city) %>%
+  summarize(n_obs = n()) %>% 
+  select(n_obs) %>%
+  mutate(n_obs = as.integer(n_obs))
+```
+
+```{r}
+function_created = function(x) {
+
+ sum_hc %>% 
+    summarize(
+      n_obs_f = pull(sum_hc,n_obs)
+    )
+}
+
+```
+
+```{r}
+urg = 
+  sum_hc %>%
+  mutate(
+    estimate_df = 
+      map(.x = city, function_created)
+  ) %>% 
+  unnest(estimate_df)
+```
+
+%>%
+  prop.test(x = pull(sum_hc,n_unsolved), n = pull(sum_hc,n_obs)) %>%
+  broom::tidy()
+
+
+Don't know if the function is correct BUT WAS able to **call** the two columns!!! 
+Now got to figure out explude sample_size 
+Use map2 
+lastly, pipe in a post.test -> to compute things! 
+
+
+I have a data set -> **sum_hc**
+sum_hc has the **x and y** that I want to use in the **maps2** 
+
+problem is map(.x -> **list**, f. -> function )
+
+
+sim_results_df = 
+  expand_grid(
+    sample_size = c(30, 60, 120, 240),
+    true_sigma = c(6, 3),
+    iteration = 1:1000
+  ) %>% 
+  mutate(
+    estimate_df = 
+      map2(.x = sample_size, .y = true_sigma, ~sim_mean_sd(n_obs = .x, sigma = .y))
+  ) %>% 
+  unnest(estimate_df)
+
+
+  
+  
+  
+  
+  
+  
+
+
+successes, trials -> estimated proportions (95% CI)
+different from 0.5 
+null true successes = 0.5 
+would expect this to hold. 
+
+1-sample proportions test without continuity correction
+
+data:  5 out of 10, null probability 0.5
+X-squared = 0, df = 1, p-value = 1
+alternative hypothesis: true p is not equal to 0.5
+95 percent confidence interval:
+ 0.2365931 0.7634069
+sample estimates:
+  p 
+0.5 
+
+(start with one city, do you understand what it is that we are trying to do)
+
+ mutate(city_state = if_else(year < 23, year + 2000, year +1900)) %>%
+ mutate(city_name = ifelse(city%in%c(" "), 2, 1))
+
+
+extract those two numbers -> put it in the success and trails 
+
+** r doesn't like it when n and n exist, so make that first one n_obs 
+** testing nothing in parenthesis 
+** run 5 times/ change mu -> save each result in their own tibbles 
+** bind all the tibbles at the end 
+** tibble 1 - 6 then do a loop over it 
+** can use "is not n.a" with filer 
+** look into pasting for combining 
+
+#### Problem 3 
+
+```{r}
+function_3 = function(n, mu = 0, sigma = 5) {
+  
+   sim_data_3 = tibble(
+    x = rnorm(n, mean = mu, sd = sigma),
+  )
+   
+   sim_data_3 %>% 
+    summarize(
+      mu_hat = mean(x))
+}
+```
+
+#THROUGH MAPPING 
+
+```{r}
+results_3 = 
+  expand_grid(
+    sample_size = 30, 
+    iter = 1:10
+  ) %>%
+  mutate(
+    map_1 = map(sample_size,function_3)
+  ) %>%
+  unnest(map_1)
+```
+
+```{r}
+  t_test = 
+  t.test(results_3, mu = 0) %>%
+  broom::tidy()
+
+```
+
+Don't we just have **one dataset** with 5000 observations?? 
