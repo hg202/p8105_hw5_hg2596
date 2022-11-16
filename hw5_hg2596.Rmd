@@ -3,7 +3,7 @@ title: "hw5_hg2596"
 output: github_document
 date: "2022-11-10"
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 ```{r}
 
@@ -207,6 +207,8 @@ graph_1 =
          xaxis = list(title = 'True Mean Values'),
          yaxis = list(title = 'Power of Test (probability of being rejected)'), 
          legend = list(title=list(text='<b> True Mean Values </b>'))) 
+
+graph_1
 ```
 
 # Graph 2 
@@ -219,6 +221,8 @@ graph_2 =
          xaxis = list(title = 'True Mean Values'),
          yaxis = list(title = 'Average Mean Estimates'), 
          legend = list(title=list(text='<b> True Mean Values </b>')))
+
+graph_2
 ```
 
 # Graph 3 
@@ -231,6 +235,8 @@ graph_3 =
          xaxis = list(title = 'True Mean Values'),
          yaxis = list(title = 'Average Mean Estimates'), 
          legend = list(title=list(text='<b> True Mean Values </b>')))
+
+graph_3 
 ```
 
 #lay it on top of eachother??
