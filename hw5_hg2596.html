@@ -377,9 +377,7 @@ pre code {
 ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()</code></pre>
-<pre class="r"><code>library(ggridges)
-library(patchwork)
-library(readxl)
+<pre class="r"><code>library(readxl)
 library(lubridate)</code></pre>
 <pre><code>## 
 ## Attaching package: &#39;lubridate&#39;
@@ -388,13 +386,33 @@ library(lubridate)</code></pre>
 ## 
 ##     date, intersect, setdiff, union</code></pre>
 <pre class="r"><code>library(tidyr)
-library(dplyr)</code></pre>
+library(dplyr)
+library(plotly)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;plotly&#39;
+## 
+## The following object is masked from &#39;package:ggplot2&#39;:
+## 
+##     last_plot
+## 
+## The following object is masked from &#39;package:stats&#39;:
+## 
+##     filter
+## 
+## The following object is masked from &#39;package:graphics&#39;:
+## 
+##     layout</code></pre>
+<div id="problem-2" class="section level1">
+<h1>Problem 2</h1>
 <pre class="r"><code>homicide_1= read_csv(&quot;./data/homicide_data.csv&quot;, show_col_types = FALSE)</code></pre>
+</div>
 <div id="create-a-city_state-variable" class="section level1">
 <h1>Create a city_state variable</h1>
 <pre class="r"><code>homicide_1 = homicide_1 %&gt;%
   unite(&#39;city_state&#39;, city:state, remove = FALSE) %&gt;% 
   apply(., 2, function(city_state) as.character(gsub(&quot;_&quot;, &quot;,&quot;, city_state))) </code></pre>
+<p>The homicide raw data has 52179observations and 13 variables. Key
+variables</p>
 <pre class="r"><code>homicide_2 = as.tibble(homicide_1) %&gt;%
   janitor::clean_names() %&gt;%
   mutate(victim_age = as.numeric(victim_age)) %&gt;%
@@ -414,103 +432,148 @@ library(dplyr)</code></pre>
 <pre class="r"><code>baltimore_hc = sum_hc %&gt;% 
   filter(city == &quot;Baltimore&quot;) </code></pre>
 </div>
-<div id="prop-test" class="section level1">
-<h1>Prop test</h1>
-<p>find successes -&gt; unsolved in Baltimore -&gt; 1825 find trials
--&gt; out of total for Baltimore -&gt; 2827</p>
+<div id="prop-test-baltimore" class="section level1">
+<h1>Prop test Baltimore</h1>
 <pre class="r"><code>first_prop = prop.test(x = pull(baltimore_hc,n_unsolved), n = pull(baltimore_hc,n_obs)) %&gt;%
   broom::tidy()</code></pre>
-<pre class="r"><code>full_prop = prop.test(x = pull(sum_hc,n_unsolved), n = pull(sum_hc,n_obs)) %&gt;%
-  broom::tidy()</code></pre>
-<p>For Baltimore, the probability of having an unsolved case is 0.645. I
-was able to do this by <strong>pulled</strong> the “x”
-<strong>(n_unsolved variable)</strong> and “n” from <strong>(n_obs
-variable)</strong> my Baltimore data. Couldn’t use sum_hc because the
-pull is taking _columns__<br />
-If used sum_hc it would have taken from <strong>every single
-city</strong> -&gt; full_prop</p>
-<p>This isn’t exactly what I want because it doesn’t give me “city”
-“confidence intervals”</p>
-<p>function(n_obs, mu = 7, sigma = 4)</p>
-<pre class="r"><code>sum_x = homicide_2 %&gt;%
-  group_by(city) %&gt;%
-  summarize(n_obs = n()) %&gt;% 
-  select(n_obs) %&gt;%
-  mutate(n_obs = as.integer(n_obs))</code></pre>
-<pre class="r"><code>function_created = function(x) {
+<p>For Baltimore, the probability of having an unsolved case is .</p>
+</div>
+<div id="prop-test-all-citities" class="section level1">
+<h1>Prop test all citities</h1>
+</div>
+<div id="make-a-dataset-to-hold-x-and-y" class="section level1">
+<h1>Make a dataset to hold “x” and “y”</h1>
+<pre class="r"><code> hold_xy = 
+  tibble(homicide_2 %&gt;%
+    group_by(city) %&gt;%
+    summarize(n_obs = n(), 
+            n_unsolved = sum(status)))</code></pre>
+</div>
+<div id="make-a-function-with-prop.test" class="section level1">
+<h1>Make a function with prop.test</h1>
+<pre class="r"><code>function_xy = function(x, y) {
 
- sum_hc %&gt;% 
-    summarize(
-      n_obs_f = pull(sum_hc,n_obs)
-    )
+ prop.test(x,y) %&gt;%
+    broom::tidy()
 }</code></pre>
-<pre class="r"><code>urg = 
-  sum_hc %&gt;%
+</div>
+<div id="map-over-function-and-clean" class="section level1">
+<h1>Map over function and clean</h1>
+<pre class="r"><code>map2_holdxy = 
+ hold_xy %&gt;%
   mutate(
     estimate_df = 
-      map(.x = city, function_created)
+      map2(.x = n_unsolved,.y = n_obs, ~function_xy(x = .x, y = .y))
   ) %&gt;% 
-  unnest(estimate_df)</code></pre>
-<p>%&gt;% prop.test(x = pull(sum_hc,n_unsolved), n = pull(sum_hc,n_obs))
-%&gt;% broom::tidy()</p>
-<p>Don’t know if the function is correct BUT WAS able to
-<strong>call</strong> the two columns!!! Now got to figure out explude
-sample_size Use map2 lastly, pipe in a post.test -&gt; to compute
-things!</p>
-<p>I have a data set -&gt; <strong>sum_hc</strong> sum_hc has the
-<strong>x and y</strong> that I want to use in the
-<strong>maps2</strong></p>
-<p>problem is map(.x -&gt; <strong>list</strong>, f. -&gt; function
-)</p>
-<p>sim_results_df = expand_grid( sample_size = c(30, 60, 120, 240),
-true_sigma = c(6, 3), iteration = 1:1000 ) %&gt;% mutate( estimate_df =
-map2(.x = sample_size, .y = true_sigma, ~sim_mean_sd(n_obs = .x, sigma =
-.y)) ) %&gt;% unnest(estimate_df)</p>
-<p>successes, trials -&gt; estimated proportions (95% CI) different from
-0.5 null true successes = 0.5 would expect this to hold.</p>
-<p>1-sample proportions test without continuity correction</p>
-<p>data: 5 out of 10, null probability 0.5 X-squared = 0, df = 1,
-p-value = 1 alternative hypothesis: true p is not equal to 0.5 95
-percent confidence interval: 0.2365931 0.7634069 sample estimates: p
-0.5</p>
-<p>(start with one city, do you understand what it is that we are trying
-to do)</p>
-<p>mutate(city_state = if_else(year &lt; 23, year + 2000, year +1900))
-%&gt;% mutate(city_name = ifelse(city%in%c(” “), 2, 1))</p>
-<p>extract those two numbers -&gt; put it in the success and trails</p>
-<p>** r doesn’t like it when n and n exist, so make that first one n_obs
-** testing nothing in parenthesis ** run 5 times/ change mu -&gt; save
-each result in their own tibbles ** bind all the tibbles at the end **
-tibble 1 - 6 then do a loop over it ** can use “is not n.a” with filer
-** look into pasting for combining</p>
-<div id="problem-3" class="section level4">
-<h4>Problem 3</h4>
-<pre class="r"><code>function_3 = function(n, mu = 0, sigma = 5) {
-  
-   sim_data_3 = tibble(
-    x = rnorm(n, mean = mu, sd = sigma),
-  )
-   
-   sim_data_3 %&gt;% 
-    summarize(
-      mu_hat = mean(x))
-}</code></pre>
-<p>#THROUGH MAPPING</p>
-<pre class="r"><code>results_3 = 
-  expand_grid(
-    sample_size = 30, 
-    iter = 1:10
-  ) %&gt;%
-  mutate(
-    map_1 = map(sample_size,function_3)
-  ) %&gt;%
-  unnest(map_1)</code></pre>
-<pre class="r"><code>  t_test = 
-  t.test(results_3, mu = 0) %&gt;%
-  broom::tidy()</code></pre>
-<p>Don’t we just have <strong>one dataset</strong> with 5000
-observations??</p>
+  unnest(estimate_df) %&gt;%
+  select( - parameter, -method, -alternative, -statistic)</code></pre>
 </div>
+<div id="graph-estimates-and-cls" class="section level1">
+<h1>Graph estimates and Cl’s</h1>
+<pre class="r"><code>graph_p_1 = 
+  ggplot(map2_holdxy, aes(x = city, y = estimate)) + 
+  geom_point() +
+  geom_errorbar(aes(x = , y = ))</code></pre>
+<p>p&lt;- ggplot(df2, aes(x=dose, y=len, fill=supp)) +
+geom_bar(stat=“identity”, color=“black”, position=position_dodge()) +
+geom_errorbar(aes(ymin=len-sd, ymax=len+sd), width=.2,
+position=position_dodge(.9))</p>
+</div>
+<div id="problem-3" class="section level1">
+<h1>Problem 3</h1>
+</div>
+<div id="create-a-function" class="section level1">
+<h1>Create a function</h1>
+<pre class="r"><code>function_a = function(true_mean) 
+{
+  x = tibble(rnorm(30,true_mean,5))
+  
+  t.test(x, mu = 0) %&gt;%
+    broom::tidy()
+
+}</code></pre>
+</div>
+<div id="map-over-function-for-mu-0" class="section level1">
+<h1>Map over function for Mu = 0</h1>
+<pre class="r"><code>map_df = 
+  expand_grid(
+    true_mean = 0, 
+    iter = 1:100) %&gt;% 
+  mutate(
+    estimate_df = map(.x = true_mean,~function_a(true_mean = .x))) %&gt;%
+  unnest(estimate_df)</code></pre>
+</div>
+<div id="map-over-function-for-mu-16" class="section level1">
+<h1>Map over function for Mu = 1:6</h1>
+<pre class="r"><code>map_df = 
+  expand_grid(
+    true_mean = 1:6, 
+    iter = 1:1000) %&gt;% 
+  mutate(
+    estimate_df = map(.x = true_mean,~function_a(true_mean = .x))) %&gt;%
+  unnest(estimate_df)</code></pre>
+</div>
+<div id="clean-data-and-create-variable" class="section level1">
+<h1>Clean data and create variable</h1>
+<pre class="r"><code>final_map = 
+  map_df %&gt;%
+  janitor::clean_names()%&gt;%
+  mutate(estimate = as.numeric(estimate)) %&gt;%
+  mutate(p_value = as.numeric(p_value)) %&gt;%
+  mutate(true_mean = as.character(true_mean)) %&gt;%
+  mutate(reject_null = ifelse(p_value &lt; 0.05, 1, 0)) %&gt;%
+  mutate(reject_null = as.numeric(reject_null)) %&gt;%
+  mutate(mu_hat = estimate) %&gt;%
+  select(true_mean, iter, mu_hat, p_value,reject_null) </code></pre>
+</div>
+<div id="summarize-1" class="section level1">
+<h1>Summarize 1</h1>
+<pre class="r"><code>final_map_2 = final_map %&gt;%
+  group_by(true_mean) %&gt;%
+  summarize(n_obs = n(), 
+            probability_reject = (sum(reject_null))/n_obs,
+            new_mu = mean(mu_hat)) </code></pre>
+</div>
+<div id="summarize-2" class="section level1">
+<h1>Summarize 2</h1>
+<pre class="r"><code>final_map_3 = 
+  final_map %&gt;%
+  filter(reject_null == 1) %&gt;%
+  group_by(true_mean) %&gt;%
+  summarize(n_obs = n(), 
+            probability_reject = (sum(reject_null))/n_obs,
+            new_mu = mean(mu_hat)) </code></pre>
+</div>
+<div id="graph-1" class="section level1">
+<h1>Graph 1</h1>
+<pre class="r"><code>graph_1 = 
+  final_map_2 %&gt;%
+  plot_ly(x = ~true_mean, y = ~probability_reject, type = &quot;scatter&quot;, mode = &quot;markers&quot;,color = ~ true_mean, alpha = 1.2)%&gt;% 
+  layout(title = &#39;Power vs True Mean Values&#39;,
+         xaxis = list(title = &#39;True Mean Values&#39;),
+         yaxis = list(title = &#39;Power of Test (probability of being rejected)&#39;), 
+         legend = list(title=list(text=&#39;&lt;b&gt; True Mean Values &lt;/b&gt;&#39;))) </code></pre>
+</div>
+<div id="graph-2" class="section level1">
+<h1>Graph 2</h1>
+<pre class="r"><code>graph_2 = 
+  final_map_2 %&gt;%
+  plot_ly(x = ~true_mean, y = ~new_mu, type = &quot;scatter&quot;, mode = &quot;markers&quot;,color = ~ true_mean, alpha = 1.2) %&gt;% 
+  layout(title = &#39;Average Mean Estimates vs True Mean Values&#39;,
+         xaxis = list(title = &#39;True Mean Values&#39;),
+         yaxis = list(title = &#39;Average Mean Estimates&#39;), 
+         legend = list(title=list(text=&#39;&lt;b&gt; True Mean Values &lt;/b&gt;&#39;)))</code></pre>
+</div>
+<div id="graph-3" class="section level1">
+<h1>Graph 3</h1>
+<pre class="r"><code>graph_3 = 
+  final_map_3 %&gt;%
+  plot_ly(x = ~true_mean, y = ~new_mu, type = &quot;scatter&quot;, mode = &quot;markers&quot;,color = ~ true_mean, alpha = 1.2) %&gt;%
+  layout(title = &#39;Average Mean Estimates vs True Mean Values (in samples where null was rejected)&#39;,
+         xaxis = list(title = &#39;True Mean Values&#39;),
+         yaxis = list(title = &#39;Average Mean Estimates&#39;), 
+         legend = list(title=list(text=&#39;&lt;b&gt; True Mean Values &lt;/b&gt;&#39;)))</code></pre>
+<p>#lay it on top of eachother??</p>
 </div>
 
 

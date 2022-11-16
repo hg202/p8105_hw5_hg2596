@@ -2,17 +2,20 @@
 title: "hw5_hg2596"
 output: html_document
 date: "2022-11-10"
+editor_options: 
+  chunk_output_type: inline
 ---
 ```{r}
 
 library(tidyverse)
-library(ggridges)
-library(patchwork)
 library(readxl)
 library(lubridate)
 library(tidyr)
 library(dplyr)
+library(plotly)
 ```
+
+# Problem 2 
 
 ```{r}
 homicide_1= read_csv("./data/homicide_data.csv", show_col_types = FALSE)
@@ -24,7 +27,11 @@ homicide_1= read_csv("./data/homicide_data.csv", show_col_types = FALSE)
 homicide_1 = homicide_1 %>%
   unite('city_state', city:state, remove = FALSE) %>% 
   apply(., 2, function(city_state) as.character(gsub("_", ",", city_state))) 
+
 ```
+
+The homicide raw data has `r nrow(homicide_1) `observations and `r ncol(homicide_1)`  variables. 
+Key variables 
 
 
 ```{r}
@@ -34,7 +41,6 @@ homicide_2 = as.tibble(homicide_1) %>%
   mutate(lat = as.numeric(lat)) %>%
   mutate(lon = as.numeric(lon)) %>%
   mutate(status = ifelse(disposition%in%c("Closed without arrest","Open/No arrest"), 1, 0))
-  
 ```
 
 ```{r}
@@ -49,163 +55,182 @@ baltimore_hc = sum_hc %>%
   filter(city == "Baltimore") 
 ```
 
-# Prop test 
-
-find successes -> unsolved in Baltimore -> 1825
-find trials -> out of total for Baltimore -> 2827
+# Prop test Baltimore
 
 ```{r}
 first_prop = prop.test(x = pull(baltimore_hc,n_unsolved), n = pull(baltimore_hc,n_obs)) %>%
   broom::tidy()
 ```
 
+For Baltimore, the probability of having an unsolved case is `r first_prop = prop.test(x = pull(baltimore_hc,n_unsolved), n = pull(baltimore_hc,n_obs)) %>% broom::tidy()`.
+
+
+# Prop test all citities 
+
+# Make a dataset to hold "x" and "y"
+
 ```{r}
-full_prop = prop.test(x = pull(sum_hc,n_unsolved), n = pull(sum_hc,n_obs)) %>%
-  broom::tidy()
+ hold_xy = 
+  tibble(homicide_2 %>%
+    group_by(city) %>%
+    summarize(n_obs = n(), 
+            n_unsolved = sum(status)))
 ```
 
-For Baltimore, the probability of having an unsolved case is 0.645. 
-I was able to do this by **pulled** the "x" **(n_unsolved variable)** and "n" from **(n_obs variable)** my Baltimore data. 
-Couldn't use sum_hc because the pull is taking _columns__  
-If used sum_hc it would have taken from **every single city** -> full_prop 
-
-This isn't exactly what I want because it doesn't give me "city" "confidence intervals" 
-
-function(n_obs, mu = 7, sigma = 4) 
+# Make a function with prop.test 
 
 ```{r}
-sum_x = homicide_2 %>%
-  group_by(city) %>%
-  summarize(n_obs = n()) %>% 
-  select(n_obs) %>%
-  mutate(n_obs = as.integer(n_obs))
-```
+function_xy = function(x, y) {
 
-```{r}
-function_created = function(x) {
-
- sum_hc %>% 
-    summarize(
-      n_obs_f = pull(sum_hc,n_obs)
-    )
-}
-
-```
-
-```{r}
-urg = 
-  sum_hc %>%
-  mutate(
-    estimate_df = 
-      map(.x = city, function_created)
-  ) %>% 
-  unnest(estimate_df)
-```
-
-%>%
-  prop.test(x = pull(sum_hc,n_unsolved), n = pull(sum_hc,n_obs)) %>%
-  broom::tidy()
-
-
-Don't know if the function is correct BUT WAS able to **call** the two columns!!! 
-Now got to figure out explude sample_size 
-Use map2 
-lastly, pipe in a post.test -> to compute things! 
-
-
-I have a data set -> **sum_hc**
-sum_hc has the **x and y** that I want to use in the **maps2** 
-
-problem is map(.x -> **list**, f. -> function )
-
-
-sim_results_df = 
-  expand_grid(
-    sample_size = c(30, 60, 120, 240),
-    true_sigma = c(6, 3),
-    iteration = 1:1000
-  ) %>% 
-  mutate(
-    estimate_df = 
-      map2(.x = sample_size, .y = true_sigma, ~sim_mean_sd(n_obs = .x, sigma = .y))
-  ) %>% 
-  unnest(estimate_df)
-
-
-  
-  
-  
-  
-  
-  
-
-
-successes, trials -> estimated proportions (95% CI)
-different from 0.5 
-null true successes = 0.5 
-would expect this to hold. 
-
-1-sample proportions test without continuity correction
-
-data:  5 out of 10, null probability 0.5
-X-squared = 0, df = 1, p-value = 1
-alternative hypothesis: true p is not equal to 0.5
-95 percent confidence interval:
- 0.2365931 0.7634069
-sample estimates:
-  p 
-0.5 
-
-(start with one city, do you understand what it is that we are trying to do)
-
- mutate(city_state = if_else(year < 23, year + 2000, year +1900)) %>%
- mutate(city_name = ifelse(city%in%c(" "), 2, 1))
-
-
-extract those two numbers -> put it in the success and trails 
-
-** r doesn't like it when n and n exist, so make that first one n_obs 
-** testing nothing in parenthesis 
-** run 5 times/ change mu -> save each result in their own tibbles 
-** bind all the tibbles at the end 
-** tibble 1 - 6 then do a loop over it 
-** can use "is not n.a" with filer 
-** look into pasting for combining 
-
-#### Problem 3 
-
-```{r}
-function_3 = function(n, mu = 0, sigma = 5) {
-  
-   sim_data_3 = tibble(
-    x = rnorm(n, mean = mu, sd = sigma),
-  )
-   
-   sim_data_3 %>% 
-    summarize(
-      mu_hat = mean(x))
+ prop.test(x,y) %>%
+    broom::tidy()
 }
 ```
 
-#THROUGH MAPPING 
+# Map over function and clean
 
 ```{r}
-results_3 = 
-  expand_grid(
-    sample_size = 30, 
-    iter = 1:10
-  ) %>%
+map2_holdxy = 
+ hold_xy %>%
   mutate(
-    map_1 = map(sample_size,function_3)
-  ) %>%
-  unnest(map_1)
+    estimate_df = 
+      map2(.x = n_unsolved,.y = n_obs, ~function_xy(x = .x, y = .y))
+  ) %>% 
+  unnest(estimate_df) %>%
+  select( - parameter, -method, -alternative, -statistic)
 ```
+
+# Graph estimates and Cl's 
 
 ```{r}
-  t_test = 
-  t.test(results_3, mu = 0) %>%
-  broom::tidy()
-
+graph_p_1 = 
+  ggplot(map2_holdxy, aes(x = city, y = estimate)) + 
+  geom_point() +
+  geom_errorbar(aes(x = , y = ))
 ```
 
-Don't we just have **one dataset** with 5000 observations?? 
+
+
+p<- ggplot(df2, aes(x=dose, y=len, fill=supp)) + 
+  geom_bar(stat="identity", color="black", 
+           position=position_dodge()) +
+  geom_errorbar(aes(ymin=len-sd, ymax=len+sd), width=.2,
+                 position=position_dodge(.9)) 
+
+
+
+# Problem 3 
+
+# Create a function 
+
+```{r}
+function_a = function(true_mean) 
+{
+  x = tibble(rnorm(30,true_mean,5))
+  
+  t.test(x, mu = 0) %>%
+    broom::tidy()
+
+}
+```
+
+# Map over function for Mu = 0
+
+```{r}
+map_df = 
+  expand_grid(
+    true_mean = 0, 
+    iter = 1:100) %>% 
+  mutate(
+    estimate_df = map(.x = true_mean,~function_a(true_mean = .x))) %>%
+  unnest(estimate_df)
+ 
+```
+
+# Map over function for Mu = 1:6 
+
+```{r}
+map_df = 
+  expand_grid(
+    true_mean = 1:6, 
+    iter = 1:1000) %>% 
+  mutate(
+    estimate_df = map(.x = true_mean,~function_a(true_mean = .x))) %>%
+  unnest(estimate_df)
+ 
+```
+
+# Clean data and create variable 
+
+```{r}
+final_map = 
+  map_df %>%
+  janitor::clean_names()%>%
+  mutate(estimate = as.numeric(estimate)) %>%
+  mutate(p_value = as.numeric(p_value)) %>%
+  mutate(true_mean = as.character(true_mean)) %>%
+  mutate(reject_null = ifelse(p_value < 0.05, 1, 0)) %>%
+  mutate(reject_null = as.numeric(reject_null)) %>%
+  mutate(mu_hat = estimate) %>%
+  select(true_mean, iter, mu_hat, p_value,reject_null) 
+```
+
+# Summarize 1
+
+```{r}
+final_map_2 = final_map %>%
+  group_by(true_mean) %>%
+  summarize(n_obs = n(), 
+            probability_reject = (sum(reject_null))/n_obs,
+            new_mu = mean(mu_hat)) 
+```
+
+# Summarize 2
+
+```{r}
+final_map_3 = 
+  final_map %>%
+  filter(reject_null == 1) %>%
+  group_by(true_mean) %>%
+  summarize(n_obs = n(), 
+            probability_reject = (sum(reject_null))/n_obs,
+            new_mu = mean(mu_hat)) 
+```
+
+# Graph 1 
+
+```{r}
+graph_1 = 
+  final_map_2 %>%
+  plot_ly(x = ~true_mean, y = ~probability_reject, type = "scatter", mode = "markers",color = ~ true_mean, alpha = 1.2)%>% 
+  layout(title = 'Power vs True Mean Values',
+         xaxis = list(title = 'True Mean Values'),
+         yaxis = list(title = 'Power of Test (probability of being rejected)'), 
+         legend = list(title=list(text='<b> True Mean Values </b>'))) 
+```
+
+# Graph 2 
+
+```{r}
+graph_2 = 
+  final_map_2 %>%
+  plot_ly(x = ~true_mean, y = ~new_mu, type = "scatter", mode = "markers",color = ~ true_mean, alpha = 1.2) %>% 
+  layout(title = 'Average Mean Estimates vs True Mean Values',
+         xaxis = list(title = 'True Mean Values'),
+         yaxis = list(title = 'Average Mean Estimates'), 
+         legend = list(title=list(text='<b> True Mean Values </b>')))
+```
+
+# Graph 3 
+
+```{r}
+graph_3 = 
+  final_map_3 %>%
+  plot_ly(x = ~true_mean, y = ~new_mu, type = "scatter", mode = "markers",color = ~ true_mean, alpha = 1.2) %>%
+  layout(title = 'Average Mean Estimates vs True Mean Values (in samples where null was rejected)',
+         xaxis = list(title = 'True Mean Values'),
+         yaxis = list(title = 'Average Mean Estimates'), 
+         legend = list(title=list(text='<b> True Mean Values </b>')))
+```
+
+#lay it on top of eachother??
