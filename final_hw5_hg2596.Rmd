@@ -1,10 +1,9 @@
 ---
-title: "hw5_hg2596"
+title: "final_hw5_hg2596"
 output: github_document
-date: "2022-11-10"
-editor_options: 
-  chunk_output_type: console
+date: "2022-11-16"
 ---
+
 ```{r}
 
 library(tidyverse)
@@ -225,7 +224,7 @@ graph_2 =
 graph_2
 ```
 
-# NONE
+# Graph 3 
 
 ```{r}
 graph_3 = 

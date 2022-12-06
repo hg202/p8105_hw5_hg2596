@@ -1,0 +1,59 @@
+---
+title: "Final_project"
+output: github_document
+date: "2022-11-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+
+library(worldcup)
+
+library(lubridate)
+```
+
+```{r}
+data(goals)
+```
+
+```{r}
+data("bookings")
+```
+
+```{r}
+booking = 
+  bookings %>%
+  filter(tournament_name %in% c("2018 FIFA World Cup")) %>% 
+  select(match_date, everything())
+```
+
+```{r}
+goals = 
+  goals %>%
+  filter(tournament_name %in% c("2018 FIFA World Cup")) %>% 
+  select(match_date, everything())
+```
+
+```{r}
+merge = 
+  full_join(booking,goals, by = c("team_id")) %>%
+  janitor::clean_names() %>%
+  select (team_id, everything())
+```
+
+```{r}
+skimr::skim(merge)
+```
+
+```{r}
+merge_date = 
+  full_join(booking,goals, by = c("match_date")) %>%
+  janitor::clean_names() %>%
+  select (match_date, everything())
+```
